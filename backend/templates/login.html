@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Yoga - Login</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #a1c4fd, #c2e9fb);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    /* --- NEW: Main container for the 2-column layout --- */
+    .main-container {
+      display: flex;
+      background: #fff;
+      border-radius: 15px;
+      max-width: 850px; /* Make it wider */
+      width: 90%;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      overflow: hidden; /* Keep the rounded corners */
+    }
+
+    /* --- Column 1: The Form --- */
+    .form-container {
+      flex-basis: 45%; /* Form takes 45% of the width */
+      padding: 2.5rem;
+      text-align: center;
+    }
+
+    .form-container img {
+      width: 100px; /* Make the image a bit smaller */
+      margin-bottom: 1rem;
+    }
+
+    /* --- Column 2: The Description --- */
+    .description-container {
+      flex-basis: 55%; /* Description takes 55% */
+      background: linear-gradient(to right, #3b3b98, #575fcf);
+      color: white;
+      padding: 2.5rem;
+      box-sizing: border-box;
+    }
+    
+    .description-container h2 {
+      margin-top: 0;
+      border-bottom: 2px solid #a1c4fd;
+      padding-bottom: 0.5rem;
+    }
+    
+    .description-container p {
+      font-size: 1.05rem;
+      line-height: 1.6;
+    }
+    
+    .description-container ul {
+      padding-left: 20px;
+    }
+    
+    .description-container li {
+      margin-bottom: 0.75rem;
+    }
+
+    /* --- Existing Form Styles (Unchanged) --- */
+    h2.form-title { color: #3b3b98; margin-bottom: 1.5rem; }
+    .form-group { text-align: left; margin-bottom: 1.2rem; position: relative; }
+    label { display: block; margin-bottom: 0.4rem; font-weight: bold; color: #333; }
+    input { width: 100%; box-sizing: border-box; padding: 0.7rem; border: 1px solid #ccc; border-radius: 8px; background: #f1f1f1; }
+    .eye-icon { position: absolute; right: 12px; top: 38px; cursor: pointer; font-size: 1rem; color: #3b3b98; user-select: none; }
+    .submit-btn { width: 100%; padding: 0.9rem; margin-top: 1rem; background-color: #3b3b98; color: #fff; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: 0.3s; }
+    .submit-btn:hover { background-color: #575fcf; }
+    .toggle-btn { margin-top: 1rem; background: none; border: none; color: #3b3b98; cursor: pointer; font-size: 0.95rem; text-decoration: underline; }
+    .hidden { display: none; }
+    .message { margin-top: 1rem; color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+  
+  <div class="main-container">
+
+    <div class="form-container">
+      <img src="https://cdn.prod.website-files.com/683b218dcc58f93d54ce8e1d/68ad8fa92a6dd2ccb8b3c9b1_Vrikrasana.webp" alt="Yoga Pose">
+      
+      <div id="messageArea" class="message"></div>
+
+      <form id="loginForm">
+        <h2 class="form-title">Login</h2>
+        <div class="form-group">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" name="email" required placeholder="Enter your email">
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" name="password" required minlength="8" placeholder="Min 8 characters">
+          <span class="eye-icon" onclick="togglePassword('loginPassword', this)">👁️</span>
+        </div>
+        <button type="submit" class="submit-btn">Login</button>
+        <button type="button" class="toggle-btn" onclick="toggleForms()">New user? Sign up</button>
+      </form>
+
+      <form id="signupForm" class="hidden">
+        <h2 class="form-title">Sign Up</h2>
+        <div class="form-group">
+          <label for="signupName">Full Name</label>
+          <input type="text" id="signupName" name="name" required placeholder="Enter your name">
+        </div>
+        <div class="form-group">
+          <label for="signupEmail">Email</label>
+          <input type="email" id="signupEmail" name="email" required placeholder="Enter your email">
+        </div>
+        <div class="form-group">
+          <label for="signupPassword">Password</label>
+          <input type="password" id="signupPassword" name="password" required minlength="8" placeholder="Min 8 characters">
+          <span class="eye-icon" onclick="togglePassword('signupPassword', this)">👁️</span>
+        </div>
+        <div class="form-group">
+          <label for="signupConfirm">Confirm Password</label>
+          <input type="password" id="signupConfirm" required placeholder="Re-enter password">
+          <span class="eye-icon" onclick="togglePassword('signupConfirm', this)">👁️</span>
+        </div>
+        <button type="submit" class="submit-btn">Sign Up</button>
+        <button type="button" class="toggle-btn" onclick="toggleForms()">Already have an account? Login</button>
+      </form>
+    </div>
+
+    <div class="description-container">
+      <h2>What is Smart Yoga?</h2>
+      <p>Your personal AI-powered yoga assistant, designed for wellness and pain relief.</p>
+      <ul>
+        <li>
+          <strong>Personalised Recommendations:</strong> Get a custom-tailored yoga plan based on your age, pain level, BMI, and health goals.
+        </li>
+        <li>
+          <strong>Instant Pose Recognition:</strong> Upload a photo of a yoga pose, and our AI model (trained on 28 classes) will identify it and provide you with its benefits.
+        </li>
+        <li>
+          <strong>Live Webcam Coach:</strong> Turn on your webcam and get real-time feedback! Our specialist AI model will identify your pose and tell you if you're doing it correctly, right from your browser.
+        </li>
+      </ul>
+      <p>Sign up or log in to begin your smart wellness journey!</p>
+    </div>
+
+  </div>
+
+  <script>
+    const messageArea = document.getElementById('messageArea');
+    function toggleForms() {
+      document.getElementById("loginForm").classList.toggle("hidden");
+      document.getElementById("signupForm").classList.toggle("hidden");
+      messageArea.textContent = '';
+    }
+    function togglePassword(fieldId, icon) {
+      const field = document.getElementById(fieldId);
+      if (field.type === "password") { field.type = "text"; icon.textContent = "🙈"; } 
+      else { field.type = "password"; icon.textContent = "👁️"; }
+    }
+    document.getElementById("loginForm").addEventListener("submit", function(e){
+      e.preventDefault();
+      const formData = new FormData(this);
+      fetch('/login', { method: 'POST', body: formData })
+      .then(response => response.json())
+      .then(data => {
+          if(data.success) { window.location.href = data.redirect_url; } 
+          else { messageArea.style.color = 'red'; messageArea.textContent = data.message; }
+      })
+      .catch(error => { console.error('Error:', error); messageArea.style.color = 'red'; messageArea.textContent = 'An error occurred. Please try again.'; });
+    });
+    document.getElementById("signupForm").addEventListener("submit", function(e){
+      e.preventDefault();
+      const pwd = document.getElementById("signupPassword").value;
+      const confirm = document.getElementById("signupConfirm").value;
+      if(pwd !== confirm){ messageArea.style.color = 'red'; messageArea.textContent = "Passwords do not match!"; return; }
+      if(pwd.length < 8){ messageArea.style.color = 'red'; messageArea.textContent = "Password must be at least 8 characters long."; return; }
+      const formData = new FormData(this);
+      fetch('/signup', { method: 'POST', body: formData })
+      .then(response => response.json())
+      .then(data => {
+          messageArea.textContent = data.message;
+          if(data.success) { messageArea.style.color = 'green'; setTimeout(toggleForms, 2000); } 
+          else { messageArea.style.color = 'red'; }
+      })
+      .catch(error => { console.error('Error:', error); messageArea.style.color = 'red'; messageArea.textContent = 'An error occurred during signup.'; });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Yoga: Personalised Yoga Recommendation</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #a1c4fd, #c2e9fb);
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 2rem;
+      background-color: white;
+      border-radius: 15px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      text-align: center;
+      color: #3b3b98;
+      font-size: 1.8rem;
+      margin-bottom: 2rem;
+    }
+    .button-group {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .button-group button {
+      padding: 0.8rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      background-color: #3b3b98;
+      color: white;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .button-group button:hover {
+      background-color: #575fcf;
+    }
+    .section {
+      display: none;
+      margin-top: 1rem;
+    }
+    label {
+      display: block;
+      margin: 1rem 0 0.4rem;
+      font-weight: bold;
+      color: #333;
+    }
+    select, input[type="file"] {
+      width: 100%;
+      padding: 0.6rem;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      background-color: #f1f1f1;
+    }
+    button.submit-btn {
+      margin-top: 2rem;
+      padding: 0.75rem 1.5rem;
+      background-color: #3b3b98;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    button.submit-btn:hover {
+      background-color: #575fcf;
+    }
+    .preview {
+      margin-top: 1rem;
+      max-width: 100%;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Smart Yoga: Personalised Yoga Recommendation</h1>
+
+    <!-- Option Buttons -->
+    <div class="button-group">
+      <button onclick="showSection('upload')">📷 Image/Video</button>
+      <button onclick="showSection('live')">🎥 Live Detection</button>
+      <button onclick="showSection('info')">📄 Information</button>
+    </div>
+
+    <!-- Upload Section -->
+    <div id="upload" class="section">
+      <form id="uploadForm">
+        <label for="mediaUpload">Upload Image or Video:</label>
+        <input type="file" accept="image/*,video/*" id="mediaUpload" name="file" required />
+        <button type="submit" class="submit-btn">Submit</button>
+      </form>
+      <div id="previewContainer"></div>
+      <p id="prediction"></p>
+    </div>
+
+    <!-- Live Detection -->
+    <div id="live" class="section">
+      <video id="webcam" autoplay playsinline width="640" height="480"></video>
+      <script>
+        navigator.mediaDevices.getUserMedia({ video: true })
+          .then(stream => {
+            document.getElementById("webcam").srcObject = stream;
+          })
+          .catch(err => console.error("Webcam error:", err));
+      </script>
+    </div>
+
+    <!-- Information Section -->
+    <div id="info" class="section">
+      <form id="infoForm">
+        <label>Age Group:</label>
+        <select name="age" required>
+          <option value="">Select Age</option>
+          <option value="15-30">15-30</option>
+          <option value="31-50">31-50</option>
+          <option value="51-70">51-70</option>
+        </select>
+
+        <label>Sex:</label>
+        <select name="sex" required>
+          <option value="">Select Sex</option>
+          <option value="Male">Male</option>
+          <option value="Female">Female</option>
+        </select>
+
+        <label>Disorders:</label>
+        <select name="disorders" multiple>
+          <option value="Back Pain">Back Pain</option>
+          <option value="Stress">Stress</option>
+          <option value="Obesity">Obesity</option>
+          <option value="Joint Pain">Joint Pain</option>
+          <option value="Stomach Pain">Stomach Pain</option>
+        </select>
+
+        <label>Pain Level:</label>
+        <select name="painLevel" required>
+          <option value="">Select Pain Level</option>
+          <option value="Low">Low</option>
+          <option value="Moderate">Moderate</option>
+          <option value="High">High</option>
+        </select>
+
+        <button type="submit" class="submit-btn">Submit</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function showSection(id) {
+      document.querySelectorAll(".section").forEach((sec) => sec.style.display = "none");
+      document.getElementById(id).style.display = "block";
+    }
+
+    // Handle Upload
+    document.getElementById("uploadForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const fileInput = document.getElementById("mediaUpload");
+      if (fileInput.files.length === 0) {
+        alert("Please select a file before submitting.");
+        return;
+      }
+      const file = fileInput.files[0];
+
+      // Preview
+      const previewContainer = document.getElementById("previewContainer");
+      previewContainer.innerHTML = "";
+      const preview = document.createElement(file.type.startsWith("video") ? "video" : "img");
+      preview.src = URL.createObjectURL(file);
+      preview.className = "preview";
+      if (file.type.startsWith("video")) preview.controls = true;
+      previewContainer.appendChild(preview);
+
+      // Send to backend
+      const formData = new FormData();
+      formData.append("file", file);
+      fetch("/upload", { method: "POST", body: formData })
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("prediction").innerText = "Predicted Pose: " + data.pose;
+        })
+        .catch(err => console.error(err));
+    });
+
+    // Handle Info form
+    document.getElementById("infoForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      fetch("/info", {
+        method: "POST",
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert("Info submitted! Recommended Pose: " + data.recommendation);
+      })
+      .catch(err => console.error(err));
+    });
+  </script>
+</body>
+</html>

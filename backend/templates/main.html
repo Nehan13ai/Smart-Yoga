@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Smart Yoga: Personalised Yoga Recommendation</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+
+    <style>
+        /* All your CSS is 100% correct and unchanged */
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(to right, #a1c4fd, #c2e9fb); margin: 0; padding: 0; }
+        .container { max-width: 900px; margin: 2rem auto; padding: 2rem; background-color: white; border-radius: 15px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1); }
+        h1 { text-align: center; color: #3b3b98; font-size: 1.8rem; margin-bottom: 0.5rem; }
+        .welcome-msg { text-align: center; color: #555; margin-bottom: 2rem; font-size: 1.1rem; }
+        .logout-btn { position: absolute; top: 20px; right: 20px; padding: 0.5rem 1rem; background-color: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer; text-decoration: none;}
+        .button-group { display: flex; justify-content: center; flex-wrap: wrap; gap: 1.5rem; margin-bottom: 2rem; }
+        .button-group button { padding: 0.8rem 1.5rem; border: none; border-radius: 8px; background-color: #3b3b98; color: white; font-size: 1rem; cursor: pointer; transition: background 0.3s; }
+        .button-group button:hover { background-color: #575fcf; }
+        .section { display: none; margin-top: 1rem; }
+        label { display: block; margin: 1rem 0 0.4rem; font-weight: bold; color: #333; }
+        select, input[type="file"], input[type="number"] { width: 100%; box-sizing: border-box; padding: 0.6rem; border-radius: 8px; border: 1px solid #ccc; background-color: #f1f1f1; }
+        .bmi-inputs { display: flex; gap: 1rem; }
+        .form-group { flex: 1; }
+        button.submit-btn { margin-top: 2rem; padding: 0.75rem 1.5rem; background-color: #3b3b98; color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+        button.submit-btn:hover { background-color: #575fcf; }
+        .disorders-dropdown { position: relative; display: inline-block; width: 100%; }
+        .dropdown-btn { background-color: #f1f1f1; padding: 0.6rem; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; user-select: none; }
+        .dropdown-content { display: none; position: absolute; background-color: white; width: 100%; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); border-radius: 8px; padding: 1rem; z-index: 1; }
+        .dropdown-content label { display: block; margin-bottom: 0.5rem; color: #333; }
+        .results-container { margin-top: 2rem; padding: 1.5rem; background-color: #f8f9fa; border-radius: 10px; border: 1px solid #e9ecef; display: none; }
+        .results-container h3 { color: #3b3b98; margin-top: 0; border-bottom: 2px solid #3b3b98; padding-bottom: 0.5rem; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3b3b98; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 1rem auto; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .pose-card { display: flex; align-items: flex-start; gap: 1.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid #eee; padding-bottom: 1.5rem; }
+        .pose-card:last-child { border-bottom: none; }
+        .pose-card img { width: 150px; height: 100px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+        .pose-card-info { text-align: left; }
+        .pose-card-info h4 { margin-top: 0; margin-bottom: 0.5rem; color: #3b3b98; }
+        .pose-card-info p { margin: 0; color: #555; font-size: 0.95rem; }
+        
+        #live-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px; 
+            margin: auto;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        #webcam {
+            width: 100%;
+            height: auto;
+            transform: scaleX(-1);
+        }
+        #output_canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #live-spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+  <div class="container">
+    <h1>Smart Yoga: Personalised Yoga Recommendation</h1>
+    <p class="welcome-msg">Welcome, {{ user_name }}!</p>
+
+    <div class="button-group">
+      <button onclick="showSection('upload')">📷 Image Pose Recognition</button>
+      <button onclick="showSection('live')">🎥 Live Detection</button>
+      <button onclick="showSection('info')">📄 Personalised Recommendation</button>
+    </div>
+
+    <div id="upload" class="section">
+      <form id="uploadForm">
+        <label for="mediaUpload">Upload an Image of a Yoga Pose:</label>
+        <input type="file" accept="image/*" id="mediaUpload" required />
+        <button type="submit" class="submit-btn">Get Pose Name</button>
+      </form>
+    </div>
+    
+    <div id="live" class="section">
+        <p style="color:#333; text-align: center;">Allow webcam access. Your camera feed will be processed in real-time in your browser.</p>
+        <div class="spinner" id="live-spinner" style="display: block;"></div>
+        <div id="live-container">
+            <video id="webcam" autoplay playsinline></video>
+            <canvas id="output_canvas"></canvas>
+        </div>
+    </div>
+
+    <div id="info" class="section info-section">
+      <form id="infoForm">
+        <label>Age Group:</label>
+        <select name="age" required><option value="">Select Age</option><option value="15-30">15-30</option><option value="31-50">31-50</option><option value="51-70">51-70</option></select>
+        <label>Sex:</label>
+        <select name="sex" required><option value="">Select Sex</option><option value="Male">Male</option><option value="Female">Female</option></select>
+        <label>Height & Weight (for BMI calculation):</label>
+        <div class="bmi-inputs"><div class="form-group"><input type="number" id="height" name="height" placeholder="Height (cm)" required min="100" max="250"></div><div class="form-group"><input type="number" id="weight" name="weight" placeholder="Weight (kg)" required min="30" max="200"></div></div>
+        <label>Pain Level (if any):</label>
+        <select name="painLevel" required><option value="">Select Pain Level</option><option value="Low">Low</option><option value="Moderate">Moderate</option><option value="High">High</option></select>
+        <label>Disorders / Health Goals:</label>
+        <div class="disorders-dropdown">
+          <div class="dropdown-btn" onclick="toggleDisorderDropdown()">Select Disorders</div>
+          <div class="dropdown-content" id="disorderList">
+            <label><input type="checkbox" name="disorders" value="Back Pain" /> Back Pain</label>
+            <label><input type="checkbox" name="disorders" value="Stress" /> Stress</label>
+            <label><input type="checkbox" name="disorders" value="Obesity" /> Obesity</label>
+            <label><input type="checkbox" name="disorders" value="Joint Pain" /> Joint Pain</label>
+            <label><input type="checkbox" name="disorders" value="Stomach Pain" /> Stomach Pain</label>
+          </div>
+        </div>
+        <button type="submit" class="submit-btn">Get Recommendations</button>
+      </form>
+    </div>
+
+    <div class="spinner" id="loadingSpinner"></div>
+    <div class="results-container" id="results">
+        <h3 id="results-title"></h3>
+        <div id="results-content"></div>
+    </div>
+  </div>
+
+  <script>
+    // --- Global Variables (Unchanged) ---
+    const videoElement = document.getElementById('webcam');
+    const canvasElement = document.getElementById('output_canvas');
+    const canvasCtx = canvasElement.getContext('2d');
+    const liveSpinner = document.getElementById('live-spinner');
+    let camera = null; 
+    let pose = null; 
+    
+    const resultsContainer = document.getElementById('results');
+    const resultsTitle = document.getElementById('results-title');
+    const resultsContent = document.getElementById('results-content');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+
+    function toggleDisorderDropdown() { /* Unchanged */
+        const list = document.getElementById("disorderList");
+        list.style.display = list.style.display === "block" ? "none" : "block";
+    }
+    window.addEventListener("click", function(e) { /* Unchanged */
+        if (!e.target.closest(".disorders-dropdown")) {
+            document.getElementById("disorderList").style.display = "none";
+        }
+    });
+
+    // --- Webcam Control Logic ---
+    function stopWebcam() {
+        if (camera) { camera.stop(); camera = null; }
+        if (pose) { pose.close(); pose = null; }
+        videoElement.pause();
+        videoElement.srcObject = null;
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        
+        // --- THIS IS THE FIX ---
+        // The spinner should be HIDDEN when the webcam stops, not shown.
+        liveSpinner.style.display = 'none'; 
+        // --- END OF FIX ---
+
+        currentPoseName = "Initializing...";
+        currentConfidence = 0.0;
+        lastServerResponse = "Initializing...";
+    }
+
+    function startWebcam() {
+        liveSpinner.style.display = 'block'; // Show spinner while loading
+        pose = new Pose({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
+        pose.setOptions({
+            modelComplexity: 1, smoothLandmarks: true, enableSegmentation: false,
+            minDetectionConfidence: 0.5, minTrackingConfidence: 0.5
+        });
+        pose.onResults(onPoseResults);
+        camera = new Camera(videoElement, {
+            onFrame: async () => { await pose.send({image: videoElement}); },
+            width: 640, height: 480
+        });
+        camera.start().then(() => {
+            liveSpinner.style.display = 'none'; // Hide spinner once camera starts
+        });
+    }
+
+    function showSection(id) { /* Unchanged */
+        stopWebcam(); 
+        document.querySelectorAll(".section").forEach((sec) => sec.style.display = "none");
+        document.getElementById(id).style.display = "block";
+        resultsContainer.style.display = 'none';
+        if (id === 'live') { 
+            startWebcam(); 
+        }
+    }
+    
+    // --- onPoseResults function (This is the stable version with cooldown) ---
+    let lastApiCall = 0;
+    const apiCooldown = 1000;
+    let currentPoseName = "Initializing...";
+    let currentConfidence = 0.0;
+    let lastServerResponse = "Initializing...";
+
+    async function onPoseResults(results) {
+        canvasElement.width = videoElement.videoWidth;
+        canvasElement.height = videoElement.videoHeight;
+        canvasCtx.save(); 
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        canvasCtx.translate(canvasElement.width, 0);
+        canvasCtx.scale(-1, 1);
+        let bodyFullyVisible = false;
+        let poseNameForDisplay = "No Person Detected";
+        let displayConfidence = 0.0;
+        let feedbackColor = "#FF0000"; 
+        if (results.poseLandmarks) {
+            drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
+            drawLandmarks(canvasCtx, results.poseLandmarks, {color: '#FF0000', radius: 6});
+            const leftShoulder = results.poseLandmarks[11];
+            const rightShoulder = results.poseLandmarks[12];
+            const leftHip = results.poseLandmarks[23];
+            const rightHip = results.poseLandmarks[24];
+            if ((leftShoulder.visibility > 0.6 || rightShoulder.visibility > 0.6) &&
+                (leftHip.visibility > 0.6 || rightHip.visibility > 0.6)) {
+                bodyFullyVisible = true;
+            }
+            const now = Date.now();
+            if (bodyFullyVisible && (now - lastApiCall > apiCooldown)) {
+                lastApiCall = now;
+                let landmarkList = [];
+                for (const landmark of results.poseLandmarks) {
+                    landmarkList.push(landmark.x, landmark.y, landmark.z, landmark.visibility);
+                }
+                try {
+                    const response = await fetch('/predict_live', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ landmarks: landmarkList })
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        lastServerResponse = data.pose_name; 
+                        currentConfidence = data.confidence;
+                        if (data.pose_name !== "No Pose Detected") {
+                            currentPoseName = data.pose_name;
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error fetching live prediction:", error);
+                    lastServerResponse = "Error";
+                    currentConfidence = 0;
+                }
+            }
+        } else {
+            lastServerResponse = "No Person Detected";
+            currentConfidence = 0;
+        }
+        if (lastServerResponse === "Initializing...") {
+             poseNameForDisplay = "Initializing...";
+        } else if (!bodyFullyVisible) {
+             poseNameForDisplay = "Please show full body";
+        } else {
+             poseNameForDisplay = lastServerResponse;
+        }
+        if (poseNameForDisplay !== "No Pose Detected" && poseNameForDisplay !== "Please show full body" && poseNameForDisplay !== "Initializing...") {
+            feedbackColor = "#00FF00";
+            displayConfidence = currentConfidence;
+        }
+        canvasCtx.restore(); 
+        canvasCtx.fillStyle = feedbackColor; 
+        canvasCtx.font = 'bold 30px Arial';
+        canvasCtx.fillText(poseNameForDisplay, 20, 50); 
+        if (displayConfidence > 0) {
+            canvasCtx.font = 'bold 20px Arial';
+            canvasCtx.fillText(`Confidence: ${displayConfidence.toFixed(1)}%`, 20, 90);
+        }
+    }
+
+    // --- Info Form submission logic (Unchanged) ---
+    document.getElementById("infoForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const selectedDisorders = formData.getAll("disorders");
+        if (selectedDisorders.length === 0) { alert("Please select at least one disorder or health goal."); return; }
+        const height = parseFloat(formData.get("height"));
+        const weight = parseFloat(formData.get("weight"));
+        let bmi = 0;
+        if (height > 0 && weight > 0) { const heightInMeters = height / 100; bmi = weight / (heightInMeters * heightInMeters); }
+        const dataToSend = { disorders: selectedDisorders, age: formData.get("age"), sex: formData.get("sex"), painLevel: formData.get("painLevel"), bmi: bmi.toFixed(1) };
+        loadingSpinner.style.display = 'block';
+        resultsContainer.style.display = 'none';
+        fetch('/recommend', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dataToSend) })
+        .then(response => response.json())
+        .then(data => {
+            loadingSpinner.style.display = 'none';
+            if (data.success && data.recommendations.length > 0) {
+                resultsTitle.innerText = "Your Personalised Recommendations";
+                let content = '';
+                data.recommendations.forEach(pose => { content += `<div class="pose-card"><img src="${pose.img_url}" alt="${pose.name}"><div class="pose-card-info"><h4>${pose.name}</h4><p>${pose.description}</p></div></div>`; });
+                resultsContent.innerHTML = content;
+                resultsContainer.style.display = 'block';
+            } else {
+                resultsTitle.innerText = "No Recommendations Found";
+                resultsContent.innerHTML = "<p>We couldn't find specific poses for your selection. Please try a different combination.</p>";
+                resultsContainer.style.display = 'block';
+            }
+        });
+    });
+
+    // --- Upload Form submission logic (Unchanged) ---
+    document.getElementById("uploadForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        const fileInput = document.getElementById("mediaUpload");
+        if (fileInput.files.length === 0) { alert("Please select a file before submitting."); return; }
+        const formData = new FormData();
+        formData.append('mediaUpload', fileInput.files[0]);
+        loadingSpinner.style.display = 'block';
+        resultsContainer.style.display = 'none';
+        fetch('/predict', { method: 'POST', body: formData })
+        .then(response => response.json())
+        .then(data => {
+            loadingSpinner.style.display = 'none';
+            if(data.success) {
+                resultsTitle.innerText = "Pose Recognition Result";
+                const pose = data.pose_data;
+                let content = `<div class="pose-card"><img src="${pose.img_url}" alt="${pose.name}"><div class="pose-card-info"><h4>${pose.name}</h4><p>${pose.description}</p></div></div><p style="text-align: center; font-weight: bold; margin-top: 1rem;">Confidence: ${data.confidence}</p>`;
+                resultsContent.innerHTML = content;
+                resultsContainer.style.display = 'block';
+            } else {
+                alert('Error: ' + data.error);
+            }
+        });
+    });
+  </script>
+</body>
+</html>
