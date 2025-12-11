@@ -22,21 +22,15 @@
 
 
 
-<br>
-
-
+<p>
 
 <b>Smart Yoga</b> is an intelligent web application designed to act as a personal yoga assistant. It solves the problem of performing yoga incorrectly at home by providing real-time AI pose recognition and offers personalized routine recommendations based on health metrics.
 
-
-
-<br>
+</p>
 
 
 
-<h2>1. 🧠 AI Pose Recognition (Dual-Model Architecture)</h2>
-
-
+<h3>1. 🧠 AI Pose Recognition (Dual-Model Architecture)</h3>
 
 <ul>
 
@@ -66,11 +60,9 @@
 
 
 
-<h2>2. 📋 Personalized Recommendation Engine</h2>
+<h3>2. 📋 Personalized Recommendation Engine</h3>
 
-
-
-A rule-based expert system that generates safe yoga routines based on:
+<p>A rule-based expert system that generates safe yoga routines based on:</p>
 
 <ul>
 
@@ -84,7 +76,7 @@ A rule-based expert system that generates safe yoga routines based on:
 
 
 
-<h2>3. 🔐 User System</h2>
+<h3>3. 🔐 User System</h3>
 
 <ul>
 
@@ -106,7 +98,7 @@ A rule-based expert system that generates safe yoga routines based on:
 
 <h3>Why MediaPipe + SVM?</h3>
 
-Instead of using a heavy Convolutional Neural Network (CNN) on raw pixels, we utilized a <b>Hybrid AI Approach</b>:
+<p>Instead of using a heavy Convolutional Neural Network (CNN) on raw pixels, we utilized a <b>Hybrid AI Approach</b>:</p>
 
 <ol>
 
@@ -120,7 +112,7 @@ Instead of using a heavy Convolutional Neural Network (CNN) on raw pixels, we ut
 
 <h3>Performance Comparison (The "Bake-Off"):</h3>
 
-We tested 7 different algorithms on our dataset. The <b>SVM (SVC)</b> proved to be superior:
+<p>We tested 7 different algorithms on our dataset. The <b>SVM (SVC)</b> proved to be superior:</p>
 
 <ul>
 
@@ -136,5 +128,5 @@ We tested 7 different algorithms on our dataset. The <b>SVM (SVC)</b> proved to 
 
 <h3>The "Specialist" Strategy</h3>
 
-To ensure the live webcam feature was fast and accurate, we trained a separate <b>Specialist Model</b>. While the main model knows 28 classes, the specialist model focuses only on the 9 specific poses used in the live feature. This reduced confusion and boosted accuracy to <b>96.94%</b>.
+<p>To ensure the live webcam feature was fast and accurate, we trained a separate <b>Specialist Model</b>. While the main model knows 28 classes, the specialist model focuses only on the 9 specific poses used in the live feature. This reduced confusion and boosted accuracy to <b>96.94%</b>.</p>
 
