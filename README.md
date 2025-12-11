@@ -32,6 +32,8 @@
 
 <h3>1. 🧠 AI Pose Recognition (Dual-Model Architecture)</h3>
 
+
+
 <ul>
 
 &nbsp; <li><b>Image Upload Analysis:</b> Upload a photo of a yoga pose, and the system identifies it with <b>91%+ accuracy</b>.
@@ -43,6 +45,8 @@
 &nbsp;   </ul>
 
 &nbsp; </li>
+
+
 
 &nbsp; <li><b>Live Webcam Coach:</b> Real-time detection using your webcam with <b>zero lag</b>.
 
@@ -62,7 +66,11 @@
 
 <h3>2. 📋 Personalized Recommendation Engine</h3>
 
+
+
 <p>A rule-based expert system that generates safe yoga routines based on:</p>
+
+
 
 <ul>
 
@@ -77,6 +85,8 @@
 
 
 <h3>3. 🔐 User System</h3>
+
+
 
 <ul>
 
@@ -98,7 +108,11 @@
 
 <h3>Why MediaPipe + SVM?</h3>
 
+
+
 <p>Instead of using a heavy Convolutional Neural Network (CNN) on raw pixels, we utilized a <b>Hybrid AI Approach</b>:</p>
+
+
 
 <ol>
 
@@ -112,7 +126,11 @@
 
 <h3>Performance Comparison (The "Bake-Off"):</h3>
 
+
+
 <p>We tested 7 different algorithms on our dataset. The <b>SVM (SVC)</b> proved to be superior:</p>
+
+
 
 <ul>
 
@@ -128,5 +146,9 @@
 
 <h3>The "Specialist" Strategy</h3>
 
+
+
 <p>To ensure the live webcam feature was fast and accurate, we trained a separate <b>Specialist Model</b>. While the main model knows 28 classes, the specialist model focuses only on the 9 specific poses used in the live feature. This reduced confusion and boosted accuracy to <b>96.94%</b>.</p>
+
+
 
