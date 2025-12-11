@@ -10,7 +10,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 
     <style>
-        /* All your CSS is 100% correct and unchanged */
         body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(to right, #a1c4fd, #c2e9fb); margin: 0; padding: 0; }
         .container { max-width: 900px; margin: 2rem auto; padding: 2rem; background-color: white; border-radius: 15px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1); }
         h1 { text-align: center; color: #3b3b98; font-size: 1.8rem; margin-bottom: 0.5rem; }
@@ -34,40 +33,20 @@
         .results-container h3 { color: #3b3b98; margin-top: 0; border-bottom: 2px solid #3b3b98; padding-bottom: 0.5rem; }
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3b3b98; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 1rem auto; display: none; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
         .pose-card { display: flex; align-items: flex-start; gap: 1.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid #eee; padding-bottom: 1.5rem; }
         .pose-card:last-child { border-bottom: none; }
-        .pose-card img { width: 150px; height: 100px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
-        .pose-card-info { text-align: left; }
-        .pose-card-info h4 { margin-top: 0; margin-bottom: 0.5rem; color: #3b3b98; }
-        .pose-card-info p { margin: 0; color: #555; font-size: 0.95rem; }
+        .pose-card img { width: 180px; height: auto; object-fit: cover; border-radius: 8px; flex-shrink: 0; border: 1px solid #ddd; }
+        .pose-card-info { text-align: left; width: 100%; }
+        .pose-card-info h4 { margin-top: 0; margin-bottom: 0.5rem; color: #3b3b98; font-size: 1.3rem; }
+        .pose-card-info p { margin: 0 0 10px 0; color: #555; font-size: 1rem; font-style: italic; }
+        .pose-card-info ul { margin: 5px 0 15px 0; padding-left: 20px; color: #444; font-size: 0.95rem; }
+        .pose-card-info li { margin-bottom: 3px; }
         
-        #live-container {
-            position: relative;
-            width: 100%;
-            max-width: 640px; 
-            margin: auto;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-        #webcam {
-            width: 100%;
-            height: auto;
-            transform: scaleX(-1);
-        }
-        #output_canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-        #live-spinner {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 10;
-        }
+        #live-container { position: relative; width: 100%; max-width: 640px; margin: auto; border-radius: 8px; overflow: hidden; }
+        #webcam { width: 100%; height: auto; transform: scaleX(-1); }
+        #output_canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        #live-spinner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; }
     </style>
 </head>
 <body>
@@ -86,7 +65,7 @@
       <form id="uploadForm">
         <label for="mediaUpload">Upload an Image of a Yoga Pose:</label>
         <input type="file" accept="image/*" id="mediaUpload" required />
-        <button type="submit" class="submit-btn">Get Pose Name</button>
+        <button type="submit" class="submit-btn">Get Pose Name & Details</button>
       </form>
     </div>
     
@@ -132,7 +111,6 @@
   </div>
 
   <script>
-    // --- Global Variables (Unchanged) ---
     const videoElement = document.getElementById('webcam');
     const canvasElement = document.getElementById('output_canvas');
     const canvasCtx = canvasElement.getContext('2d');
@@ -145,36 +123,45 @@
     const resultsContent = document.getElementById('results-content');
     const loadingSpinner = document.getElementById('loadingSpinner');
 
-    function toggleDisorderDropdown() { /* Unchanged */
+    function toggleDisorderDropdown() {
         const list = document.getElementById("disorderList");
         list.style.display = list.style.display === "block" ? "none" : "block";
     }
-    window.addEventListener("click", function(e) { /* Unchanged */
+    window.addEventListener("click", function(e) {
         if (!e.target.closest(".disorders-dropdown")) {
             document.getElementById("disorderList").style.display = "none";
         }
     });
 
-    // --- Webcam Control Logic ---
+    function buildPoseCard(pose) {
+        let stepsHtml = '';
+        if (pose.steps && pose.steps.length > 0) {
+            stepsHtml = '<strong>How to perform:</strong><ul>' + 
+                        pose.steps.map(step => `<li>${step}</li>`).join('') + '</ul>';
+        }
+        let benefitsHtml = '';
+        if (pose.benefits && pose.benefits.length > 0) {
+            benefitsHtml = '<strong>Benefits:</strong><ul>' + 
+                           pose.benefits.map(benefit => `<li>${benefit}</li>`).join('') + '</ul>';
+        }
+        const imgUrl = pose.img_url ? pose.img_url : 'https://via.placeholder.com/150?text=No+Image';
+        return `<div class="pose-card"><img src="${imgUrl}" alt="${pose.name}"><div class="pose-card-info"><h4>${pose.name}</h4><p>${pose.description}</p><div>${stepsHtml}</div><div>${benefitsHtml}</div></div></div>`;
+    }
+
     function stopWebcam() {
         if (camera) { camera.stop(); camera = null; }
         if (pose) { pose.close(); pose = null; }
         videoElement.pause();
         videoElement.srcObject = null;
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        
-        // --- THIS IS THE FIX ---
-        // The spinner should be HIDDEN when the webcam stops, not shown.
         liveSpinner.style.display = 'none'; 
-        // --- END OF FIX ---
-
         currentPoseName = "Initializing...";
         currentConfidence = 0.0;
         lastServerResponse = "Initializing...";
     }
 
     function startWebcam() {
-        liveSpinner.style.display = 'block'; // Show spinner while loading
+        liveSpinner.style.display = 'block'; 
         pose = new Pose({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
         pose.setOptions({
             modelComplexity: 1, smoothLandmarks: true, enableSegmentation: false,
@@ -186,23 +173,21 @@
             width: 640, height: 480
         });
         camera.start().then(() => {
-            liveSpinner.style.display = 'none'; // Hide spinner once camera starts
+            liveSpinner.style.display = 'none'; 
         });
     }
 
-    function showSection(id) { /* Unchanged */
+    function showSection(id) { 
         stopWebcam(); 
         document.querySelectorAll(".section").forEach((sec) => sec.style.display = "none");
         document.getElementById(id).style.display = "block";
         resultsContainer.style.display = 'none';
-        if (id === 'live') { 
-            startWebcam(); 
-        }
+        if (id === 'live') { startWebcam(); }
     }
     
-    // --- onPoseResults function (This is the stable version with cooldown) ---
+    // --- FASTER COOLDOWN (500ms) ---
     let lastApiCall = 0;
-    const apiCooldown = 1000;
+    const apiCooldown = 500; // 0.5 seconds
     let currentPoseName = "Initializing...";
     let currentConfidence = 0.0;
     let lastServerResponse = "Initializing...";
@@ -218,6 +203,7 @@
         let poseNameForDisplay = "No Person Detected";
         let displayConfidence = 0.0;
         let feedbackColor = "#FF0000"; 
+        
         if (results.poseLandmarks) {
             drawConnectors(canvasCtx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
             drawLandmarks(canvasCtx, results.poseLandmarks, {color: '#FF0000', radius: 6});
@@ -260,6 +246,7 @@
             lastServerResponse = "No Person Detected";
             currentConfidence = 0;
         }
+        
         if (lastServerResponse === "Initializing...") {
              poseNameForDisplay = "Initializing...";
         } else if (!bodyFullyVisible) {
@@ -267,6 +254,7 @@
         } else {
              poseNameForDisplay = lastServerResponse;
         }
+        
         if (poseNameForDisplay !== "No Pose Detected" && poseNameForDisplay !== "Please show full body" && poseNameForDisplay !== "Initializing...") {
             feedbackColor = "#00FF00";
             displayConfidence = currentConfidence;
@@ -281,7 +269,6 @@
         }
     }
 
-    // --- Info Form submission logic (Unchanged) ---
     document.getElementById("infoForm").addEventListener("submit", function (e) {
         e.preventDefault();
         const formData = new FormData(e.target);
@@ -301,7 +288,7 @@
             if (data.success && data.recommendations.length > 0) {
                 resultsTitle.innerText = "Your Personalised Recommendations";
                 let content = '';
-                data.recommendations.forEach(pose => { content += `<div class="pose-card"><img src="${pose.img_url}" alt="${pose.name}"><div class="pose-card-info"><h4>${pose.name}</h4><p>${pose.description}</p></div></div>`; });
+                data.recommendations.forEach(pose => { content += buildPoseCard(pose); });
                 resultsContent.innerHTML = content;
                 resultsContainer.style.display = 'block';
             } else {
@@ -312,7 +299,6 @@
         });
     });
 
-    // --- Upload Form submission logic (Unchanged) ---
     document.getElementById("uploadForm").addEventListener("submit", function (e) {
         e.preventDefault();
         const fileInput = document.getElementById("mediaUpload");
@@ -328,7 +314,8 @@
             if(data.success) {
                 resultsTitle.innerText = "Pose Recognition Result";
                 const pose = data.pose_data;
-                let content = `<div class="pose-card"><img src="${pose.img_url}" alt="${pose.name}"><div class="pose-card-info"><h4>${pose.name}</h4><p>${pose.description}</p></div></div><p style="text-align: center; font-weight: bold; margin-top: 1rem;">Confidence: ${data.confidence}</p>`;
+                const confidenceHtml = `<p style="text-align: center; font-weight: bold; margin-top: 1rem; font-size: 1.2rem; color: #3b3b98;">AI Confidence: ${data.confidence}</p>`;
+                let content = buildPoseCard(pose) + confidenceHtml;
                 resultsContent.innerHTML = content;
                 resultsContainer.style.display = 'block';
             } else {

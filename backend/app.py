@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
@@ -6,253 +6,520 @@ from werkzeug.utils import secure_filename
 from pose_model import predict_pose_from_image, predict_pose_from_landmarks 
 
 app = Flask(__name__)
-app.secret_key = 'a_very_secret_key_that_you_should_change'
+app.secret_key = 'smart_yoga_secret_key'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# --- YOGA POSES DATABASE (Unchanged) ---
+# --- YOGA POSES DATABASE (STRICT TAGS + DETAILED INFO) ---
 YOGA_POSES_DATABASE = [
-    {"id": "Shavasana", "name": "Savasana (Corpse Pose)", "img_url": "/static/poses/shavasana.png", "description": "A foundational resting pose to calm the mind and relax the body.", "tags": ['bp', 'stress', 'jp', 'age_15_70', 'intensity_low', 'intensity_medium', 'intensity_high', 'joint_friendly']},
-    {"id": "Pawanmuktasana", "name": "Pawanmuktasana / Apanasana (Wind-Relieving Pose)", "img_url": "/static/poses/pawanmuktasana.jpg", "description": "Massages abdominal organs, aids digestion, and relieves lower back pain.", "tags": ['bp', 'jp', 'obesity', 'stress', 'st', 'age_15_70', 'intensity_low', 'intensity_medium', 'intensity_high', 'joint_friendly']},
-    {"id": "Marjariasana bitilasana", "name": "Marjariasana-Bitilasana (Cat-Cow)", "img_url": "/static/poses/marjariasana_bitilasana.jpeg", "description": "A dynamic flow that warms the spine and improves flexibility.", "tags": ['stress', 'jp', 'bp', 'age_15_70', 'intensity_low', 'intensity_medium', 'gender_female', 'joint_friendly']},
-    {"id": "Setu Bandhasana", "name": "Setu Bandhasana (Bridge Pose)", "img_url": "/static/poses/setu-bandhasana.jpg", "description": "Strengthens the back, glutes, and legs while opening the chest.", "tags": ['stress', 'obesity', 'bp', 'jp', 'age_15_50', 'intensity_low', 'intensity_medium']},
-    {"id": "Bhujangasana", "name": "Bhujangasana (Cobra Pose)", "img_url": "/static/poses/Bhujangasana.jpg", "description": "A backbend that increases spinal flexibility and strengthens back muscles.", "tags": ['stress', 'obesity', 'bp', 'st', 'age_15_50', 'intensity_low', 'intensity_medium', 'joint_friendly']},
-    {"id": "Salabhasana", "name": "Shalabhasana (Locust Pose)", "img_url": "/static/poses/Salabhasana.png", "description": "Strengthens the entire back of the body and improves posture.", "tags": ['bp', 'obesity', 'st', 'age_15_50', 'intensity_low']},
-    {"id": "Vajrasana", "name": "Vajrasana (Thunderbolt Pose)", "img_url": "/static/poses/vajrasana.jpeg", "description": "A simple sitting pose that aids digestion and strengthens pelvic muscles.", "tags": ['stress', 'bp', 'st', 'age_15_70', 'intensity_low', 'intensity_medium', 'joint_friendly']},
-    {"id": "Balasana", "name": "Balasana (Child's Pose)", "img_url": "/static/poses/balasana.jpeg", "description": "A restorative pose that gently stretches the back, hips, and ankles.", "tags": ['stress', 'st', 'bp', 'age_15_50', 'intensity_low', 'intensity_medium', 'intensity_high', 'joint_friendly']},
-    {"id": "Ardha Matsyendrasana", "name": "Ardha Matsyendrasana (Half Lord of the Fishes)", "img_url": "/static/poses/Ardha_Matsyendrasana.jpeg", "description": "A seated twist that energizes the spine and stimulates digestive organs.", "tags": ['obesity', 'stress', 'st', 'age_15_50', 'intensity_low', 'joint_friendly']},
-    {"id": "Malasana", "name": "Malasana (Garland Pose)", "img_url": "/static/poses/malasana1.jpeg", "description": "A deep squat that stretches the hips, groin, and lower back.", "tags": ['obesity', 'st', 'age_15_50', 'intensity_low', 'intensity_medium', 'gender_female']},
-    {"id": "Viparita karani", "name": "Viparita Karani (Legs-Up-the-Wall Pose)", "img_url": "/static/poses/viparita_karani.jpeg", "description": "A restorative pose that helps relieve tired legs and can reduce stress.", "tags": ['stress', 'jp', 'bp', 'st', 'age_15_70', 'intensity_low', 'intensity_medium', 'intensity_high', 'gender_female', 'joint_friendly']},
-    {"id": "paschimottanasana", "name": "Paschimottanasana (Seated Forward Bend)", "img_url": "/static/poses/Paschimottanasana.jpeg", "description": "An intense forward stretch that calms the brain and relieves stress.", "tags": ['st', 'obesity', 'stress', 'age_15_30', 'intensity_low', 'intensity_medium']},
-    {"id": "Nadi Shodhana Pranayama", "name": "Nadi Shodhana Pranayama (Alternate Nostril Breathing)", "img_url": "/static/poses/nadi_shoshana_pranayama.jpeg", "description": "A breathing technique to calm the nervous system and reduce anxiety.", "tags": ['stress', 'obesity', 'bp', 'age_15_70', 'intensity_low', 'intensity_medium', 'intensity_high', 'joint_friendly']},
-    {"id": "tadasana", "name": "Tadasana (Mountain Pose)", "img_url": "/static/poses/tadasan.png", "description": "The foundational standing pose that improves posture and body awareness.", "tags": ['stress', 'obesity', 'jp', 'bp', 'age_15_70', 'intensity_low', 'intensity_medium', 'intensity_high', 'gender_female', 'joint_friendly']},
-    {"id": "Surya Namaskar", "name": "Surya Namaskar (Sun Salutation)", "img_url": "/static/poses/surya_namaskar.jpg", "description": "A sequence of poses that warms up the entire body, improves strength and flexibility.", "tags": ['stress', 'obesity', 'st', 'jp', 'bp', 'age_15_70', 'intensity_low', 'intensity_medium']},
-    {"id": "virabhadrasana", "name": "Virabhadrasana (Warrior Pose)", "img_url": "/static/poses/virabhadrasana.jpg", "description": "Builds strength and stamina in the legs and core, improving balance.", "tags": ['jp', 'stress', 'obesity', 'bp', 'age_15_50', 'intensity_low', 'intensity_medium']},
-    {"id": "utkatasana", "name": "Utkatasana (Chair Pose)", "img_url": "/static/poses/utkasana.jpg", "description": "A powerful pose that strengthens the legs, core, and arms.", "tags": ['stress', 'obesity', 'bp', 'age_15_50', 'intensity_low', 'intensity_medium']},
-    {"id": "sirsasana", "name": "Sirsasana (Headstand)", "img_url": "/static/poses/Sirsasana.jpg", "description": "An advanced inversion that calms the brain and strengthens the upper body.", "tags": ['stress', 'age_15_30', 'intensity_low']},
-    {"id": "bakasana", "name": "Bakasana (Crow Pose)", "img_url": "/static/poses/bakasana5.jpg", "description": "An arm balance that strengthens the arms and wrists, and improves core strength.", "tags": ['stress', 'obesity', 'age_15_30', 'intensity_low']},
-    {"id": "vasisthasana", "name": "Vasisthasana (Side Plank Pose)", "img_url": "/static/poses/vasisthasana.png", "description": "Strengthens the arms, wrists, core, and legs. Improves balance.", "tags": ['stress', 'obesity', 'age_15_30', 'intensity_low']},
-    {"id": "purvottanasana", "name": "Purvottanasana (Upward Plank Pose)", "img_url": "/static/poses/Purvottanasana.png", "description": "A powerful pose that strengthens the back, arms, and legs.", "tags": ['bp', 'stress', 'age_15_30', 'intensity_low']},
-    {"id": "mayurasana", "name": "Mayurasana (Peacock Pose)", "img_url": "/static/poses/Mayurasana.png", "description": "An advanced arm balance that detoxifies the body and strengthens digestion.", "tags": ['bp', 'st', 'age_15_30', 'intensity_low']},
-    {"id": "Vrikshasana", "name": "Vrksasana (Tree Pose)", "img_url": "/static/poses/vrikshasana.jpg", "description": "A balancing pose that improves focus and concentration.", "tags": ['jp', 'stress', 'bp', 'age_15_50', 'intensity_low', 'intensity_medium']},
-    {"id": "Sarvangasana_", "name": "Sarvangasana (Shoulder Stand)", "img_url": "/static/poses/Sarvangasana.jpg", "description": "A calming inversion that can help regulate metabolism.", "tags": ['stress', 'obesity', 'bp', 'age_15_30', 'intensity_low']},
-    {"id": "Kati chakrasana", "name": "Katichakrasana (Standing Spinal Twist)", "img_url": "/static/poses/Kati_chakrasana.jpg", "description": "A simple standing twist that improves spinal flexibility.", "tags": ['stress', 'obesity', 'st', 'age_15_70', 'intensity_low', 'intensity_medium', 'intensity_high', 'joint_friendly']},
-    {"id": "Ardhakati chakrasana", "name": "Ardha Katichakrasana (Half Spinal Twist)", "img_url": "/static/poses/Ardhakati_chakrasana.jpg", "description": "A standing side-bending pose that stretches the sides of the body.", "tags": ['stress', 'obesity', 'st', 'jp', 'bp', 'age_15_70', 'intensity_low', 'intensity_medium', 'joint_friendly']},
-    {"id": "uttanasana", "name": "Uttanasana (Standing Forward Bend)", "img_url": "/static/poses/Uttanasana.png", "description": "A calming pose that stretches the hamstrings and back.", "tags": ['bp', 'stress', 'age_15_30', 'intensity_low', 'intensity_medium']},
+    # --- 1. STRESS SPECIALISTS ---
+    {
+        "id": "NadiShodhana", 
+        "name": "Nadi Shodhana (Alternate Breathing)", 
+        "img_url": "/static/poses/nadi_shoshana_pranayama.jpeg", 
+        "tags": ['stress', 'age_15_70', 'intensity_low', 'joint_friendly'], 
+        "description": "A breathing technique to calm the nervous system and reduce anxiety.",
+        "steps": ["Sit comfortably.", "Close right nostril, inhale left.", "Close left, exhale right.", "Inhale right, exhale left. Repeat."],
+        "benefits": ["Lowers heart rate.", "Reduces stress and anxiety.", "Purifies energy channels."]
+    },
+    {
+        "id": "Shavasana", 
+        "name": "Savasana (Corpse Pose)", 
+        "img_url": "/static/poses/shavasana.png", 
+        "tags": ['stress', 'bp', 'age_15_70', 'intensity_low', 'joint_friendly'], 
+        "description": "A foundational resting pose to calm the mind and relax the body.",
+        "steps": ["Lie flat on your back.", "Arms at sides, palms up.", "Close eyes and breathe deeply.", "Relax your entire body."],
+        "benefits": ["Calms the brain.", "Relieves stress and depression.", "Lowers blood pressure."]
+    },
+    {
+        "id": "Balasana", 
+        "name": "Balasana (Child's Pose)", 
+        "img_url": "/static/poses/balasana.jpeg", 
+        "tags": ['stress', 'bp', 'age_15_70', 'intensity_low', 'joint_friendly'], 
+        "description": "A restorative pose that gently stretches the back and hips.",
+        "steps": ["Kneel on floor, toes touching.", "Sit back on heels, separate knees.", "Lay torso down between thighs.", "Extend arms forward."],
+        "benefits": ["Relieves back and neck pain.", "Calms the brain.", "Gently stretches hips and ankles."]
+    },
+    {
+        "id": "ViparitaKarani", 
+        "name": "Viparita Karani (Legs-Up-the-Wall)", 
+        "img_url": "/static/poses/viparita_karani.jpeg", 
+        "tags": ['stress', 'jp', 'age_15_70', 'intensity_low', 'joint_friendly'], 
+        "description": "A restorative pose that helps relieve tired legs and can reduce stress.",
+        "steps": ["Sit sideways next to a wall.", "Swing legs up the wall as you lie back.", "Rest arms by sides.", "Relax for 5-15 mins."],
+        "benefits": ["Relieves tired legs and feet.", "Calms the mind.", "Gently stretches back of neck."]
+    },
+
+    # --- 2. BACK PAIN SPECIALISTS ---
+    {
+        "id": "Marjariasana", 
+        "name": "Marjariasana-Bitilasana (Cat-Cow)", 
+        "img_url": "/static/poses/marjariasana_bitilasana.jpeg", 
+        "tags": ['bp', 'stress', 'age_15_70', 'intensity_low', 'joint_friendly'],
+        "description": "A dynamic flow that warms the spine and improves flexibility.",
+        "steps": ["Start on hands and knees (tabletop).", "Inhale, drop belly, lift head (Cow).", "Exhale, round spine, tuck chin (Cat).", "Repeat 5-10 times."],
+        "benefits": ["Improves posture.", "Strengthens spine and neck.", "Massages abdominal organs."]
+    },
+    {
+        "id": "SetuBandhasana", 
+        "name": "Setu Bandhasana (Bridge Pose)", 
+        "img_url": "/static/poses/setu-bandhasana.jpg", 
+        "tags": ['bp', 'age_15_70', 'intensity_low', 'intensity_medium'], 
+        "description": "Strengthens the back, glutes, and legs while opening the chest.",
+        "steps": ["Lie on back, knees bent, feet flat.", "Lift hips high toward ceiling.", "Interlace fingers under back.", "Hold for 30 seconds."],
+        "benefits": ["Stretches chest and neck.", "Calms brain.", "Stimulates thyroid and lungs."]
+    },
+    {
+        "id": "Bhujangasana", 
+        "name": "Bhujangasana (Cobra Pose)", 
+        "img_url": "/static/poses/Bhujangasana.jpg", 
+        "tags": ['bp', 'age_15_70', 'intensity_low', 'intensity_medium'], 
+        "description": "A backbend that increases spinal flexibility and strengthens back muscles.",
+        "steps": ["Lie on stomach.", "Place hands under shoulders.", "Inhale, lift chest off floor.", "Keep shoulders down away from ears."],
+        "benefits": ["Strengthens spine.", "Stretches chest and lungs.", "Soothes sciatica and asthma."]
+    },
+    {
+        "id": "Salabhasana", 
+        "name": "Shalabhasana (Locust Pose)", 
+        "img_url": "/static/poses/Salabhasana.png", 
+        "tags": ['bp', 'age_15_70', 'intensity_low'], 
+        "description": "Strengthens the entire back of the body and improves posture.",
+        "steps": ["Lie on belly, arms at sides.", "Inhale, lift head, chest, arms, and legs.", "Look forward.", "Hold for 30 seconds."],
+        "benefits": ["Strengthens spine and buttocks.", "Stretches chest and shoulders.", "Improves posture."]
+    },
+
+    # --- 3. STOMACH PAIN SPECIALISTS ---
+    {
+        "id": "Pawanmuktasana", 
+        "name": "Pawanmuktasana (Wind-Relieving Pose)", 
+        "img_url": "/static/poses/pawanmuktasana.jpg", 
+        "tags": ['st', 'bp', 'age_15_70', 'intensity_low', 'joint_friendly'], 
+        "description": "Massages abdominal organs, aids digestion, and relieves lower back pain.",
+        "steps": ["Lie on back.", "Bring knees to chest.", "Clasp hands around legs.", "Rock gently side to side."],
+        "benefits": ["Strengthens back.", "Massages intestines.", "Relieves gas and digestion issues."]
+    },
+    {
+        "id": "Vajrasana", 
+        "name": "Vajrasana (Thunderbolt Pose)", 
+        "img_url": "/static/poses/vajrasana.jpeg", 
+        "tags": ['st', 'age_15_70', 'intensity_low', 'joint_friendly'], 
+        "description": "A simple sitting pose that aids digestion and strengthens pelvic muscles.",
+        "steps": ["Kneel on floor.", "Sit back on heels.", "Keep spine straight.", "Rest hands on knees. Hold for 5 mins."],
+        "benefits": ["Aids digestion and acidity.", "Strengthens pelvic muscles.", "Calms the mind."]
+    },
+    {
+        "id": "ArdhaMatsyendrasana", 
+        "name": "Ardha Matsyendrasana (Half Fish Pose)", 
+        "img_url": "/static/poses/Ardha_Matsyendrasana.jpeg", 
+        "tags": ['st', 'obesity', 'age_15_70', 'intensity_low', 'joint_friendly'],
+        "description": "A seated twist that energizes the spine and stimulates digestive organs.",
+        "steps": ["Sit with legs straight.", "Bend right knee, place foot outside left thigh.", "Twist torso to the right.", "Look over shoulder. Repeat."],
+        "benefits": ["Stimulates liver and kidneys.", "Energizes the spine.", "Relieves backache."]
+    },
+    
+    # --- 4. JOINT PAIN & OBESITY SPECIALISTS ---
+    {
+        "id": "Tadasana", 
+        "name": "Tadasana (Mountain Pose)", 
+        "img_url": "/static/poses/tadasan.png", 
+        "tags": ['jp', 'bp', 'obesity', 'age_15_70', 'intensity_low', 'joint_friendly'], 
+        "description": "The foundational standing pose that improves posture and body awareness.",
+        "steps": ["Stand tall with feet together.", "Engage thigh muscles.", "Lengthen spine upward.", "Relax shoulders down."],
+        "benefits": ["Improves posture.", "Strengthens thighs, knees, and ankles.", "Firms abdomen."]
+    },
+    {
+        "id": "Vrikshasana", 
+        "name": "Vrksasana (Tree Pose)", 
+        "img_url": "/static/poses/vrikshasana.jpg", 
+        "tags": ['jp', 'stress', 'age_15_70', 'intensity_low', 'joint_friendly'], 
+        "description": "A balancing pose for focus.",
+        "steps": ["Stand tall.", "Place foot on inner thigh.", "Hands in prayer.", "Find focal point."],
+        "benefits": ["Strengthens legs and spine.", "Improves balance.", "Stretches groins."]
+    },
+    {
+        "id": "Virabhadrasana", 
+        "name": "Virabhadrasana (Warrior Pose)", 
+        "img_url": "/static/poses/virabhadrasana.jpg", 
+        "tags": ['obesity', 'jp', 'age_15_70', 'intensity_medium'], 
+        "description": "Builds strength and stamina in the legs and core, improving balance.",
+        "steps": ["Step feet wide.", "Turn right foot out.", "Bend right knee.", "Raise arms parallel to floor.", "Gaze over hand."],
+        "benefits": ["Strengthens legs and ankles.", "Stretches chest and lungs.", "Increases stamina."]
+    },
+    {
+        "id": "Utkatasana", 
+        "name": "Utkatasana (Chair Pose)", 
+        "img_url": "/static/poses/utkasana.jpg", 
+        "tags": ['obesity', 'jp', 'age_15_70', 'intensity_medium'], 
+        "description": "A powerful pose that strengthens the legs, core, and arms.",
+        "steps": ["Stand in Tadasana.", "Inhale arms up.", "Exhale, sit back as if in a chair.", "Hold, keeping back long."],
+        "benefits": ["Strengthens ankles and thighs.", "Stretches shoulders.", "Stimulates heart and diaphragm."]
+    },
+    {
+        "id": "SuryaNamaskar", 
+        "name": "Surya Namaskar (Sun Salutation)", 
+        "img_url": "/static/poses/surya_namaskar.jpg", 
+        "tags": ['obesity', 'age_15_70', 'intensity_high'], 
+        "description": "A sequence of poses that warms up the entire body, improves strength and flexibility.",
+        "steps": ["Prayer pose.", "Raised arms.", "Forward fold.", "Lunge.", "Plank.", "Cobra.", "Downward Dog.", "Return to standing."],
+        "benefits": ["Improves blood circulation.", "Tones muscles and weight loss.", "Calms mind and focus."]
+    },
+    
+    # --- 5. FLEXIBILITY / GENERAL ---
+    {
+        "id": "Paschimottanasana", 
+        "name": "Paschimottanasana (Seated Forward Bend)", 
+        "img_url": "/static/poses/Paschimottanasana.jpeg", 
+        "tags": ['stress', 'st', 'age_15_70', 'intensity_medium'], 
+        "description": "An intense forward stretch that calms the brain and relieves stress.",
+        "steps": ["Sit with legs straight.", "Inhale arms up.", "Exhale, fold forward from hips.", "Hold feet or shins."],
+        "benefits": ["Calms the brain.", "Stretches spine and hamstrings.", "Stimulates liver and kidneys."]
+    },
+    {
+        "id": "Katichakrasana", 
+        "name": "Katichakrasana (Standing Twist)", 
+        "img_url": "/static/poses/Kati_chakrasana.jpg", 
+        "tags": ['bp', 'st', 'obesity', 'age_15_70', 'intensity_low', 'joint_friendly'], 
+        "description": "A simple standing twist that improves spinal flexibility.",
+        "steps": ["Stand feet shoulder-width.", "Inhale, arms to sides.", "Exhale, twist waist right, hand to shoulder.", "Repeat left."],
+        "benefits": ["Relieves constipation.", "Strengthens spine.", "Good for back stiffness."]
+    },
+    {
+        "id": "ArdhaKatichakrasana", 
+        "name": "Ardha Katichakrasana (Half Spinal Twist)", 
+        "img_url": "/static/poses/Ardhakati_chakrasana.jpg", 
+        "tags": ['bp', 'obesity', 'st', 'age_15_70', 'intensity_low', 'joint_friendly'], 
+        "description": "A standing side-bending pose that stretches the sides of the body.",
+        "steps": ["Stand straight.", "Raise right arm overhead.", "Bend torso to the left.", "Slide left hand down leg. Repeat."],
+        "benefits": ["Reduces waist fat.", "Improves liver function.", "Relieves back pain."]
+    },
+    {
+        "id": "Uttanasana", 
+        "name": "Uttanasana (Standing Forward Bend)", 
+        "img_url": "/static/poses/Uttanasana.png", 
+        "tags": ['bp', 'stress', 'age_15_70', 'intensity_medium'],
+        "description": "A calming pose that stretches the hamstrings and back.",
+        "steps": ["Stand tall in Tadasana.", "Exhale, fold forward from hips.", "Place hands on floor or hold elbows.", "Relax head down."],
+        "benefits": ["Calms brain.", "Stretches hamstrings and calves.", "Stimulates liver and kidneys."]
+    },
+
+  # --- 6. YOUNGER / HIGH INTENSITY ONLY (Fully Detailed) ---
+    {
+        "id": "Sirsasana", 
+        "name": "Sirsasana (Headstand)", 
+        "img_url": "/static/poses/Sirsasana.jpg", 
+        "tags": ['stress', 'age_15_30', 'intensity_high'], 
+        "description": "Known as the king of asanas, this advanced inversion calms the brain and strengthens the body.", 
+        "steps": [
+            "Kneel on the floor and interlace your fingers to form a cup.",
+            "Place the crown of your head on the floor, cradled by your hands.",
+            "Lift your hips and walk your feet towards your face.",
+            "Engage your core and slowly lift your legs up towards the ceiling."
+        ], 
+        "benefits": [
+            "Calms the brain and relieves stress and mild depression.",
+            "Strengthens the arms, legs, and spine.",
+            "Stimulates the pituitary and pineal glands.",
+            "Improves digestion."
+        ]
+    },
+    {
+        "id": "Bakasana", 
+        "name": "Bakasana (Crow Pose)", 
+        "img_url": "/static/poses/bakasana5.jpg", 
+        "tags": ['stress', 'obesity', 'age_15_30', 'intensity_high'], 
+        "description": "An arm balance that builds strength in the arms and wrists while improving focus.", 
+        "steps": [
+            "Squat down with feet together and knees wide apart.",
+            "Place hands on the floor shoulder-width apart.",
+            "Place your knees on the backs of your upper arms (triceps).",
+            "Lean forward, shifting weight onto your hands, and lift your feet off the floor."
+        ], 
+        "benefits": [
+            "Strengthens arms and wrists.",
+            "Stretches the upper back.",
+            "Strengthens the abdominal muscles.",
+            "Opens the groins."
+        ]
+    },
+    {
+        "id": "Vasisthasana", 
+        "name": "Vasisthasana (Side Plank Pose)", 
+        "img_url": "/static/poses/vasisthasana.png", 
+        "tags": ['stress', 'obesity', 'age_15_30', 'intensity_high'], 
+        "description": "A powerful balancing pose that strengthens the arms, wrists, and core.", 
+        "steps": [
+            "Start in a standard plank pose.",
+            "Shift weight onto your right hand and roll onto the outer edge of your right foot.",
+            "Stack your left foot on top of your right.",
+            "Lift your left arm toward the ceiling and look up."
+        ], 
+        "benefits": [
+            "Strengthens the arms, belly, and legs.",
+            "Stretches and strengthens the wrists.",
+            "Stretches the backs of the legs.",
+            "Improves sense of balance."
+        ]
+    },
+    {
+        "id": "Purvottanasana", 
+        "name": "Purvottanasana (Upward Plank Pose)", 
+        "img_url": "/static/poses/Purvottanasana.png", 
+        "tags": ['bp', 'stress', 'age_15_30', 'intensity_high'], 
+        "description": "An intense stretch for the front body that strengthens the back, arms, and wrists.", 
+        "steps": [
+            "Sit with legs extended in front of you.",
+            "Place hands behind your hips, fingers pointing forward.",
+            "Press into your hands and feet to lift your hips high.",
+            "Gently drop your head back if comfortable."
+        ], 
+        "benefits": [
+            "Strengthens the arms, wrists, and legs.",
+            "Stretches the shoulders, chest, and front ankles.",
+            "Frees the mind and helps relieve fatigue."
+        ]
+    },
+    {
+        "id": "Mayurasana", 
+        "name": "Mayurasana (Peacock Pose)", 
+        "img_url": "/static/poses/Mayurasana.png", 
+        "tags": ['bp', 'st', 'age_15_30', 'intensity_high'], 
+        "description": "An advanced arm balance that strongly detoxifies the body and improves digestion.", 
+        "steps": [
+            "Kneel on the floor, knees wide.",
+            "Place hands on the floor with fingers pointing backwards towards your feet.",
+            "Bend elbows and press them into your belly button.",
+            "Lean forward and lift legs off the ground, balancing on your hands."
+        ], 
+        "benefits": [
+            "Detoxifies the body.",
+            "Strengthens digestive organs and aids digestion.",
+            "Strengthens wrists and forearms.",
+            "Tones the abdomen."
+        ]
+    },
+    {
+        "id": "Sarvangasana", 
+        "name": "Sarvangasana (Shoulder Stand)", 
+        "img_url": "/static/poses/Sarvangasana.jpg", 
+        "tags": ['stress', 'obesity', 'bp', 'age_15_30', 'intensity_medium'], 
+        "description": "The 'Queen of Asanas', this inversion helps regulate metabolism and calms the nerves.", 
+        "steps": [
+            "Lie on your back with arms by your sides.",
+            "Lift your legs, buttocks, and back off the floor.",
+            "Support your lower back with your hands.",
+            "Straighten your legs and spine upwards. Rest weight on shoulders, not neck."
+        ], 
+        "benefits": [
+            "Calms the brain and helps relieve stress and mild depression.",
+            "Stimulates the thyroid and prostate glands.",
+            "Stretches the shoulders and neck.",
+            "Tones the legs and buttocks."
+        ]
+    },
+    {
+        "id": "Malasana", 
+        "name": "Malasana (Garland Pose)", 
+        "img_url": "/static/poses/malasana1.jpeg", 
+        "tags": ['obesity', 'st', 'age_15_50', 'intensity_medium', 'gender_female'], 
+        "description": "A deep squat that opens the hips and is excellent for pelvic health.", 
+        "steps": [
+            "Squat with your feet as close together as possible. Keep heels on floor if possible.",
+            "Separate your thighs slightly wider than your torso.",
+            "Lean your torso forward and fit it snugly between your thighs.",
+            "Bring palms together in prayer position and press elbows against inner knees."
+        ], 
+        "benefits": [
+            "Stretches the ankles, groins, and back torso.",
+            "Tones the belly.",
+            "Improves function of the colon.",
+            "Relieves back pain."
+        ]
+    }
 ]
 
-# --- Database Helper Functions (Unchanged) ---
+# --- USER DATABASE SETUP ---
 def get_db_connection():
     conn = sqlite3.connect('users.db')
     conn.row_factory = sqlite3.Row
     return conn
 
-# --- User Auth Routes (Unchanged) ---
+# --- ROUTES ---
 @app.route('/')
-def index():
+def home():
     if 'user_id' in session:
-        return redirect(url_for('main_app'))
+        return redirect(url_for('main_dashboard'))
+    return redirect(url_for('login'))
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        name = request.form['name']
+        email = request.form['email']
+        password = request.form['password']
+        hashed_password = generate_password_hash(password)
+        conn = get_db_connection()
+        try:
+            conn.execute('INSERT INTO users (name, email, password) VALUES (?, ?, ?)', (name, email, hashed_password))
+            conn.commit()
+            return jsonify({'success': True, 'message': 'Account created! Redirecting to login...'})
+        except sqlite3.IntegrityError:
+            return jsonify({'success': False, 'message': 'Email already exists!'})
+        finally:
+            conn.close()
     return render_template('login.html')
 
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    email = request.form['email']
-    password = request.form['password']
-    conn = get_db_connection()
-    user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
-    conn.close()
-    if user and check_password_hash(user['password'], password):
-        session['user_id'] = user['id']
-        session['user_name'] = user['name']
-        return jsonify({'success': True, 'redirect_url': url_for('main_app')})
-    else:
-        return jsonify({'success': False, 'message': 'Invalid email or password.'})
-
-@app.route('/signup', methods=['POST'])
-def signup():
-    name = request.form['name']
-    email = request.form['email']
-    password = request.form['password']
-    hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
-    try:
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
         conn = get_db_connection()
-        conn.execute('INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
-                     (name, email, hashed_password))
-        conn.commit()
+        user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
         conn.close()
-        return jsonify({'success': True, 'message': 'Signup successful! Please login.'})
-    except sqlite3.IntegrityError:
-        return jsonify({'success': False, 'message': 'Email address already registered.'})
-
-@app.route('/main')
-def main_app():
-    if 'user_id' not in session:
-        return redirect(url_for('index'))
-    return render_template('main.html', user_name=session.get('user_name'))
+        if user and check_password_hash(user['password'], password):
+            session['user_id'] = user['id']
+            session['user_name'] = user['name']
+            return jsonify({'success': True, 'redirect_url': url_for('main_dashboard')})
+        else:
+            return jsonify({'success': False, 'message': 'Invalid email or password'})
+    return render_template('login.html')
 
 @app.route('/logout')
 def logout():
-    session.pop('user_id', None)
-    session.pop('user_name', None)
-    return redirect(url_for('index'))
+    session.clear()
+    return redirect(url_for('login'))
 
-# --- Image Upload Prediction Route (Unchanged) ---
+@app.route('/main')
+def main_dashboard():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    return render_template('main.html', user_name=session['user_name'])
+
+# --- 1. PREDICT FROM IMAGE UPLOAD (Unrestricted) ---
 @app.route('/predict', methods=['POST'])
 def predict():
-    if 'user_id' not in session:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
-    
     if 'mediaUpload' not in request.files:
-        return jsonify({'success': False, 'error': 'No file part'})
+        return jsonify({'success': False, 'error': 'No file uploaded'})
     
     file = request.files['mediaUpload']
-    if file.filename == '':
-        return jsonify({'success': False, 'error': 'No selected file'})
-        
-    if file:
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        
-        predicted_pose_name, confidence = predict_pose_from_image(filepath)
-        os.remove(filepath) 
-        
-        if predicted_pose_name.lower() == 'other':
-            return jsonify({
-                'success': False,
-                'error': f'No yoga pose was detected in the image. (Confidence: {confidence:.2f}%)'
-            })
-        
-        CONFIDENCE_THRESHOLD = 50.0 # This remains 50% for high-quality uploads
-        if confidence < CONFIDENCE_THRESHOLD:
-            return jsonify({'success': False, 'error': f'Could not identify pose with high confidence. (Confidence: {confidence:.2f}%)'})
-        
-        pose_details = None
-        normalized_prediction = predicted_pose_name.lower().replace(" ", "").replace("_", "")
-        for pose in YOGA_POSES_DATABASE:
-            normalized_id = pose['id'].lower().replace(" ", "").replace("_", "")
-            if normalized_id == normalized_prediction:
-                pose_details = pose
-                break
-        
-        if pose_details:
-            return jsonify({'success': True, 'pose_data': pose_details, 'confidence': f"{confidence:.2f}%"})
-        else:
-            return jsonify({'success': False, 'error': f"Pose '{predicted_pose_name}' recognized but not found in the information database."})
-
-# --- Recommendation Route (Unchanged) ---
-@app.route('/recommend', methods=['POST'])
-def recommend():
-    if 'user_id' not in session:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    filename = secure_filename(file.filename)
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(filepath)
     
-    data = request.get_json()
-    age_group = data.get('age')
-    sex = data.get('sex')
-    pain_level = data.get('painLevel')
-    disorders = data.get('disorders', [])
-    bmi = float(data.get('bmi', 0))
-
-    if not all([age_group, sex, pain_level, disorders]):
-        return jsonify({'success': False, 'error': 'Missing required information.'})
-
-    disorder_map = {"Back Pain": "bp", "Joint Pain": "jp", "Stomach Pain": "st", "Stress": "stress", "Obesity": "obesity"}
-    required_disorder_tags = {disorder_map[d] for d in disorders}
-
-    valid_age_tags = set()
-    if age_group == "15-30":
-        valid_age_tags.update(["age_15_30", "age_15_50", "age_15_70"])
-    elif age_group == "31-50":
-        valid_age_tags.update(["age_15_50", "age_15_70"])
-    elif age_group == "51-70":
-        valid_age_tags.add("age_15_70")
+    predicted_pose_name, confidence = predict_pose_from_image(filepath)
     
-    valid_intensity_tags = set()
-    if pain_level == 'High':
-        valid_intensity_tags.add('intensity_low')
-    elif pain_level == 'Moderate':
-        valid_intensity_tags.update(['intensity_low', 'intensity_medium'])
-    else: # Low
-        valid_intensity_tags.update(['intensity_low', 'intensity_medium', 'intensity_high'])
-
-    candidate_poses = []
+    # NO CONFIDENCE RESTRICTION HERE - Always returns result
+    
+    pose_details = None
+    normalized_pred = predicted_pose_name.lower().replace(" ", "").replace("_", "")
+    
     for pose in YOGA_POSES_DATABASE:
-        pose_tags = set(pose['tags'])
-        if not required_disorder_tags.intersection(pose_tags) and 'all' not in pose_tags:
-            continue
-        if not valid_age_tags.intersection(pose_tags):
-            continue
-        if not valid_intensity_tags.intersection(pose_tags):
-            continue
-        if sex == "Male" and pose.get('gender') == 'Female Only': 
-             continue
-        candidate_poses.append(pose)
-
-    final_recommendations = []
-    if bmi >= 25:
-        for pose in candidate_poses:
-            if 'joint_friendly' in pose['tags']:
-                final_recommendations.append(pose)
-    else:
-        final_recommendations = candidate_poses
+        normalized_id = pose['id'].lower().replace(" ", "").replace("_", "")
+        if normalized_id == normalized_pred:
+            pose_details = pose
+            break
     
-    if not final_recommendations and bmi >= 25:
-        final_recommendations = [pose for pose in YOGA_POSES_DATABASE if 'joint_friendly' in pose['tags']]
+    if pose_details:
+        response_data = {
+            'name': pose_details['name'],
+            'description': pose_details['description'],
+            'img_url': pose_details['img_url'],
+            'steps': pose_details.get('steps', []),
+            'benefits': pose_details.get('benefits', [])
+        }
+    else:
+        response_data = {
+            'name': predicted_pose_name,
+            'description': "Pose detected.",
+            'img_url': "",
+            'steps': [],
+            'benefits': []
+        }
 
-    return jsonify({'success': True, 'recommendations': final_recommendations})
+    return jsonify({
+        'success': True,
+        'pose_data': response_data,
+        'confidence': f"{confidence:.2f}%"
+    })
 
-
-# --- *** LIVE PREDICTION ROUTE (with Threshold changed to 50%) *** ---
+# --- 2. LIVE PREDICTION API ---
 @app.route('/predict_live', methods=['POST'])
 def predict_live():
-    """Receives landmarks from client, returns pose prediction."""
-    if 'user_id' not in session:
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
-    
     data = request.get_json()
-    if not data or 'landmarks' not in data:
-        return jsonify({'success': False, 'error': 'No landmark data received.'})
-    
     landmarks = data['landmarks']
     
     predicted_pose_name, confidence = predict_pose_from_landmarks(landmarks)
     
-    # We will keep the print statement for now, it's good for debugging.
-    print(f"RAW PREDICTION: {predicted_pose_name}, CONFIDENCE: {confidence:.2f}%")
-
-    # Check for "Other" class first
     if predicted_pose_name.lower() == 'other':
-        return jsonify({
-            'success': True, 
-            'pose_name': 'No Pose Detected',
-            'confidence': confidence
-        })
+        return jsonify({'success': True, 'pose_name': 'No Pose Detected', 'confidence': confidence})
     
-    # --- THIS IS THE FIX ---
-    # We set the threshold back to 50% as you requested.
-    CONFIDENCE_THRESHOLD = 50.0 
-    if confidence < CONFIDENCE_THRESHOLD:
-        return jsonify({
-            'success': True, 
-            'pose_name': 'No Pose Detected',
-            'confidence': confidence
-        })
+    if confidence < 50.0:
+        return jsonify({'success': True, 'pose_name': 'No Pose Detected', 'confidence': confidence})
     
-    # Check against database to get the proper name
-    pose_name_for_display = "Unknown Pose"
     normalized_prediction = predicted_pose_name.lower().replace(" ", "").replace("_", "")
+    pose_name_for_display = predicted_pose_name 
+    
     for pose in YOGA_POSES_DATABASE:
         normalized_id = pose['id'].lower().replace(" ", "").replace("_", "")
-        if normalized_id == normalized_prediction:
+        if normalized_id == normalized_prediction: # FIXED: Changed normalized_pred to normalized_prediction
             pose_name_for_display = pose['name'].split('(')[0].strip()
             break
             
-    return jsonify({
-        'success': True,
-        'pose_name': pose_name_for_display,
-        'confidence': confidence
-    })
+    return jsonify({'success': True, 'pose_name': pose_name_for_display, 'confidence': confidence})
 
-# --- Main Execution ---
+# --- 3. RECOMMENDATION ENGINE ---
+@app.route('/recommend', methods=['POST'])
+def recommend():
+    data = request.json
+    user_disorders = data.get('disorders', [])
+    age_group = data.get('age')
+    pain_level = data.get('painLevel')
+    bmi = float(data.get('bmi', 0))
+
+    recommended_poses = []
+    
+    # Filter 1: Disorders
+    for pose in YOGA_POSES_DATABASE:
+        for disorder in user_disorders:
+            tag = ''
+            if disorder == 'Back Pain': tag = 'bp'
+            elif disorder == 'Stress': tag = 'stress'
+            elif disorder == 'Obesity': tag = 'obesity'
+            elif disorder == 'Joint Pain': tag = 'jp'
+            elif disorder == 'Stomach Pain': tag = 'st'
+            
+            if tag in pose['tags']:
+                if pose not in recommended_poses:
+                    recommended_poses.append(pose)
+                break 
+    
+    # Filter 2: Age & Pain Level
+    filtered_poses = []
+    for pose in recommended_poses:
+        if age_group == '31-50' and 'age_15_30' in pose['tags']:
+            continue
+        elif age_group == '51-70' and 'age_15_70' not in pose['tags']:
+            continue
+
+        if pain_level == 'High':
+            if 'intensity_medium' in pose['tags'] or 'intensity_high' in pose['tags']:
+                continue
+        elif pain_level == 'Moderate':
+            if 'intensity_high' in pose['tags']:
+                continue
+            
+        filtered_poses.append(pose)
+        
+    # Filter 3: BMI Check
+    final_poses = []
+    if bmi >= 25:
+        for pose in filtered_poses:
+            if 'joint_friendly' in pose['tags']:
+                final_poses.append(pose)
+    else:
+        final_poses = filtered_poses
+
+    return jsonify({'success': True, 'recommendations': final_poses})
+
 if __name__ == '__main__':
     app.run(debug=True)
